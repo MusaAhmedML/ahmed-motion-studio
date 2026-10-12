@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Ahmed Academy — Motion Studio</title>
+<style>
+  html,body{margin:0;padding:0;background:#0a0a0c;overflow:hidden}
+  canvas{display:block}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script type="module">
+// The whole studio in one page. window.__init(film, fmt, dur) binds a film module,
+// window.__grab(t) paints instant t and returns the pixels. Pure function of time.
+import { layout, FORMATS, C, bg, vignette, grain } from './lib/brand.js';
+import * as M from './lib/motion.js';
+
+const c = document.getElementById('c');
+const g = c.getContext('2d', { alpha: false, willReadFrequently: false });
+
+let FILM = null, L = null, DUR = 30;
+
+// Raster plates live in lib/assets.js so index.html and every film share one
+// registry. The renderer blocks until they decode.
+import { requestPlate, platesReady, plateReport } from './lib/assets.js';
+
+window.__init = (name, fmt, dur) => {
+  L = layout(fmt);
+  c.width = L.w; c.height = L.h;
+  DUR = dur;
+  FILM = FILM_CACHE[name];
+  if (!FILM) throw new Error('unknown film: ' + name);
+  FILM.setup?.(L, DUR);
+  for (const a of (FILM.assets || [])) requestPlate(a);
+  window.__plateNames = (FILM.assets || []).slice();
+  window.__w = L.w; window.__h = L.h;
+  return { w: L.w, h: L.h, name };
+};
+
+window.__grab = (t) => {
+  FILM.draw(g, L, t, DUR);
+  return c.toDataURL('image/png').split(',')[1];
+};
+
+// Stills are lossless PNG; video frames go over the pipe as high-quality JPEG
+// because PNG encoding is ~2x slower and the frames are re-encoded to H.264 anyway.
+window.__assetsReady = () => platesReady();
+window.__plateReport = () => plateReport();
+window.__grabPNG = (t) => {
+  FILM.draw(g, L, t, DUR);
+  return c.toDataURL('image/png').split(',')[1];
+};
+window.__grabJPEG = (t, q) => {
+  FILM.draw(g, L, t, DUR);
+  return c.toDataURL('image/jpeg', q ?? 0.94).split(',')[1];
+};
+
+// Live preview in a normal browser; disabled under the headless renderer.
+if (!navigator.webdriver) {
+  let playing = true, t0 = performance.now(), t = 0;
+  addEventListener('keydown', e => { if (e.code === 'Space') playing = !playing; });
+  (function loop() {
+    if (playing) { t = ((performance.now() - t0) / 1000) % DUR; }
+    try { FILM.draw(g, L, t, DUR); } catch (e) { console.error(e); }
+    requestAnimationFrame(loop);
+  })();
+}
+
+// ---- Film registry ----
+// Each film exports { setup(L,dur), draw(g,L,t,dur), sfx? } and is a pure function of t.
+import * as F01 from './films/01-kinetic.js';
+import * as F02 from './films/02-uimorph.js';
+import * as F03 from './films/03-parallax.js';
+import * as F04 from './films/04-character.js';
+import * as F05 from './films/05-paper.js';
+import * as F06 from './films/06-glide.js';
+import * as F07 from './films/07-offer.js';
+import * as F08 from './films/08-constellation.js';
+import * as F09 from './films/09-plate.js';
+import * as F10 from './films/10-markscheme.js';
+import * as F11 from './films/11-effort.js';
+import * as F12 from './films/12-why.js';
+import * as F13 from './films/13-which.js';
+import * as F14 from './films/14-taught.js';
+import * as F15 from './films/15-brag.js';
+import * as F16R from './films/15-recall.js';
+import * as F17 from './films/16-guess.js';
+
+const FILM_CACHE = {
+  '01-kinetic': F01, '02-uimorph': F02, '03-parallax': F03, '04-character': F04,
+  '05-paper': F05, '06-glide': F06, '07-offer': F07, '08-constellation': F08,
+  '09-plate': F09, '10-markscheme': F10,
+  '11-effort': F11, '12-why': F12, '13-which': F13, '14-taught': F14,
+  '15-brag': F15, '15-recall': F16R, '16-guess': F17,
+};
+window.__films = Object.keys(FILM_CACHE);
+
+// Signal readiness only after every film module has resolved.
+window.__ready = true;
+</script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+{
+  "name": "ahmed-motion-studio",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "render": "node render.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.63.0"
+  }
+}
